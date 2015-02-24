@@ -269,9 +269,7 @@ Diff GitRepository::diff(QString revisionA, QString revisionB) const
 	git_tree_free(gitTreeB);
 	git_diff_free(gitDiff);
 
-	return Diff(carryAlongData.nodesA_, treeA,
-					carryAlongData.nodesB_, treeB,
-					this);
+	return Diff(carryAlongData.nodesA_, carryAlongData.nodesB_);
 }
 
 CommitGraph GitRepository::commitGraph(QString startRevision, QString endRevision) const

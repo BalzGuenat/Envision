@@ -41,28 +41,23 @@ class FILEPERSISTENCE_API Diff
 {
 	public:
 		Diff();
-		Diff(QList<GenericNode*>& nodesA, std::shared_ptr<GenericTree> treeA,
-			  QList<GenericNode*>& nodesB, std::shared_ptr<GenericTree> treeB,
-			  const GitRepository* repository);
+		Diff(QList<GenericNode*>& nodesA,
+			  QList<GenericNode*>& nodesB);
 
 		IdToChangeDescriptionHash changes() const;
 		IdToChangeDescriptionHash changes(ChangeType type) const;
 		IdToChangeDescriptionHash changes(ChangeType type, ChangeDescription::UpdateFlags flags) const;
 
 	private:
-		void idMatching(IdToGenericNodeHash& nodesA, IdToGenericNodeHash& nodesB, IdToGenericNodeHash& createdParents);
-		void findParentsInCommit(IdToGenericNodeHash& nodes, IdToGenericNodeHash& createdParents,
-										 std::shared_ptr<GenericTree> tree, const GitRepository* repository);
+		void idMatching(IdToGenericNodeHash& nodesA, IdToGenericNodeHash& nodesB);
 
 		void setAllChildStructureUpdates();
-		void setChildStructureUpdateForNode(const GenericNode* node);
 
 		void filterPersistenceUnits(IdToGenericNodeHash& nodes);
 
-		IdToChangeDescriptionHash changeDescriptions_{};
+		inline bool trueChange(const ChangeDescription* change);
 
-		std::shared_ptr<GenericTree> treeA_{};
-		std::shared_ptr<GenericTree> treeB_{};
+		IdToChangeDescriptionHash changeDescriptions_{};
 };
 
 inline IdToChangeDescriptionHash Diff::changes() const {return changeDescriptions_;}

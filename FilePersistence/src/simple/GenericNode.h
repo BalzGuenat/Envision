@@ -53,6 +53,7 @@ class FILEPERSISTENCE_API GenericNode {
 		void setId(Model::NodeIdType id);
 
 		void setParent(GenericNode* parent);
+		void setParentId(Model::NodeIdType parentId);
 		GenericNode* addChild(GenericNode* child);
 		GenericNode* child(const QString& name);
 		const QList<GenericNode*>& children() const;
@@ -79,6 +80,7 @@ class FILEPERSISTENCE_API GenericNode {
 		GenericNode* find(Model::NodeIdType id);
 
 		Model::NodeIdType id() const;
+		Model::NodeIdType parentId() const;
 
 		GenericPersistentUnit* persistentUnit() const;
 
@@ -97,6 +99,8 @@ class FILEPERSISTENCE_API GenericNode {
 		QString type_;
 		QString value_;
 		ValueType valueType_{};
+
+		Model::NodeIdType parentId_{};
 
 		Model::NodeIdType id_{};
 		GenericNode* parent_{};
@@ -142,6 +146,7 @@ inline bool GenericNode::hasValue() const { ensureDataRead(); return valueType_ 
 inline GenericNode::ValueType GenericNode::valueType() const { ensureDataRead(); return valueType_; }
 inline const QString& GenericNode::rawValue() const { ensureDataRead(); return value_; }
 inline Model::NodeIdType GenericNode::id() const { ensureDataRead(); return id_; }
+inline Model::NodeIdType GenericNode::parentId() const { ensureDataRead();return parentId_; }
 inline const QList<GenericNode*>& GenericNode::children() const { ensureDataRead(); return children_; }
 inline GenericNode* GenericNode::parent() const {ensureDataRead(); return parent_;} // Parent must be explicitly set
 

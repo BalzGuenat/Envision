@@ -128,6 +128,13 @@ void GenericNode::setParent(GenericNode* parent)
 {
 	if (parent) Q_ASSERT(sameTree(parent));
 	parent_ = parent;
+	parentId_ = parent->id();
+}
+
+inline void GenericNode::setParentId(const Model::NodeIdType parentId)
+{
+	parent_ = nullptr;
+	parentId_ = parentId;
 }
 
 GenericNode* GenericNode::addChild(GenericNode* child)
@@ -165,6 +172,7 @@ void GenericNode::reset(GenericPersistentUnit* persistentUnit)
 	id_ = {};
 	children_.clear();
 	parent_ = nullptr;
+	parentId_ = {};
 	dataLine_ = nullptr;
 	dataLineLength_ = {};
 }
@@ -198,6 +206,7 @@ void GenericNode::reset(GenericPersistentUnit* persistentUnit, const GenericNode
 		value_ = nodeToCopy->value_;
 		valueType_ = nodeToCopy->valueType_;
 		id_ = nodeToCopy->id_;
+		parentId_ = nodeToCopy->parentId_;
 	}
 }
 
@@ -223,6 +232,7 @@ void GenericNode::detach()
 	{
 		parent_->children_.removeOne(this);
 		parent_ = nullptr;
+		parentId_ = {};
 	}
 }
 
