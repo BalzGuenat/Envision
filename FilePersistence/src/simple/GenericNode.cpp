@@ -130,13 +130,13 @@ void GenericNode::setParent(GenericNode* parent)
 	parent_ = parent;
 	parentId_ = parent->id();
 }
-
+/* not sure here
 inline void GenericNode::setParentId(const Model::NodeIdType parentId)
 {
 	parent_ = nullptr;
 	parentId_ = parentId;
 }
-
+*/
 GenericNode* GenericNode::addChild(GenericNode* child)
 {
 	Q_ASSERT(child);
