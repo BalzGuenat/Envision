@@ -31,6 +31,37 @@
 namespace FilePersistence {
 
 using ConflictUnitSet = QMultiHash<Model::NodeIdType, std::shared_ptr<ChangeDescription>>;
+using ChangePtr = std::shared_ptr<ChangeDescription>;
+
+/**
+ * This class is used to gather sets of changes that need to be identical in order to resolve
+ * cases where both branches make the exact same changes.
+ */
+class ChangeBubbles
+{
+	public:
+		ChangeBubbles();
+		~ChangeBubbles();
+		/**
+		 * Adds the change to the appropriate set and returns that set. If the change already exists in a set,
+		 * that set is returned. If \a connectedChange is not \a nullptr then both changes are added and their
+		 * sets are merged.
+		 */
+		QHash<Model::NodeIdType, ChangePtr>* add(ChangePtr change, ChangePtr connectedChange = nullptr);
+		/**
+		 * Adds all changes in \a bubble to one set or merges if the changes already exist.
+		 */
+		QHash<Model::NodeIdType, ChangePtr>* add(QSet<ChangePtr> bubble);
+		QHash<Model::NodeIdType, QHash<Model::NodeIdType, ChangePtr>* > partitions();
+	private:
+		/**
+		 * Merges all changes in \a source into \a target. If \a source is different from \a target it becomes
+		 * obsolete and unreachable from this object. If \a source is not used again, it should be deleted.
+		 */
+		void mergePartitions(QHash<Model::NodeIdType, ChangePtr>* source, QHash<Model::NodeIdType, ChangePtr>* target);
+
+		QHash<Model::NodeIdType, QHash<Model::NodeIdType, ChangePtr>* > partitions_;
+};
 
 class ConflictUnitDetector : public ConflictPipelineComponent
 {
@@ -92,6 +123,9 @@ class ConflictUnitDetector : public ConflictPipelineComponent
 		bool useLinkedChanges_;
 
 		std::shared_ptr<GenericTree> treeBase_;
+
+		ChangeBubbles bubblesA_;
+		ChangeBubbles bubblesB_;
 };
 
 } /* namespace FilePersistence */

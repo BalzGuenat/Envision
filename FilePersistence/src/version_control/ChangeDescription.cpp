@@ -52,6 +52,15 @@ ChangeDescription::ChangeDescription(GenericNode* nodeA, GenericNode* nodeB) :
 	computeFlags();
 }
 
+bool ChangeDescription::equalTo(const std::shared_ptr<ChangeDescription> other)
+{
+	return nodeId() == other->nodeId() &&
+			type() == other->type() &&
+			flags() == other->flags() &&
+			((!nodeA() && !other->nodeA()) || (nodeA() && nodeA()->equalTo(other->nodeA()))) &&
+			((!nodeB() && !other->nodeB()) || (nodeB() && nodeB()->equalTo(other->nodeB())));
+}
+
 QString ChangeDescription::summary() const
 {
 	QString typeStr;

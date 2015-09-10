@@ -38,6 +38,8 @@ class FILEPERSISTENCE_API ChangeDescription
 		ChangeDescription(GenericNode* nodeA, GenericNode* nodeB);
 		~ChangeDescription();
 
+		bool equalTo(const std::shared_ptr<ChangeDescription> other);
+
 		QString summary() const;
 
 		static std::shared_ptr<ChangeDescription> newStructChange(

@@ -41,6 +41,7 @@ class ConflictPairs
 		QList<std::shared_ptr<ChangeDescription>> values(std::shared_ptr<ChangeDescription>& change) const;
 		void insert(std::shared_ptr<ChangeDescription>& changeA, std::shared_ptr<ChangeDescription>& changeB);
 		void remove(std::shared_ptr<ChangeDescription>& changeA, std::shared_ptr<ChangeDescription>& changeB);
+		void remove(std::shared_ptr<ChangeDescription>& change);
 	private:
 		QMultiHash<std::shared_ptr<ChangeDescription>, std::shared_ptr<ChangeDescription>> pairs_;
 };

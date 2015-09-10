@@ -30,6 +30,48 @@
 
 namespace FilePersistence {
 
+QHash<Model::NodeIdType, ChangePtr>* ChangeBubbles::add(ChangePtr change, ChangePtr connectedChange)
+{
+	Q_ASSERT(change);
+	auto partition = partitions_.value(change->nodeId());
+	if (!partition)
+	{
+		partition = new QHash<Model::NodeIdType, ChangePtr>{{change->nodeId(), change}};
+		partitions_.insert(change->nodeId(), partition);
+	}
+	if (connectedChange)
+	{
+		auto otherPartition = add(connectedChange);
+		mergePartitions(partition, otherPartition);
+		return otherPartition;
+	}
+	else
+		return partition;
+}
+
+QHash<Model::NodeIdType, ChangePtr>* ChangeBubbles::add(QSet<ChangePtr> bubble)
+{
+	auto changeIt = bubble.begin();
+	auto first = *changeIt;
+	auto partition = add(first);
+	for (; changeIt != bubble.end(); ++changeIt)
+		add(*changeIt, first);
+	return partition;
+}
+
+void ChangeBubbles::mergePartitions(QHash<Model::NodeIdType, ChangePtr>* source,
+												QHash<Model::NodeIdType, ChangePtr>* target)
+{
+	if (source != target)
+	{
+		for (auto change : source->values())
+		{
+			target->insert(change->nodeId(), change);
+			partitions_.insert(change->nodeId(), target);
+		}
+	}
+}
+
 ConflictUnitDetector::ConflictUnitDetector(QSet<QString>& conflictTypes, bool useLinkedChanges) :
 	conflictTypes_{conflictTypes}, useLinkedChanges_{useLinkedChanges} {}
 
@@ -121,17 +163,62 @@ LinkedChangesTransition ConflictUnitDetector::run(std::shared_ptr<GenericTree>&,
 	 */
 	QMultiHash<std::shared_ptr<ChangeDescription>, std::shared_ptr<ChangeDescription>> moveDependencies;
 
-	auto gatherDependencies = [&moveDependencies, &treeBase](ChangeDependencyGraph& cdg)
+	auto gatherDependencies = [&moveDependencies, &treeBase](ChangeDependencyGraph& cdg, ChangeBubbles& bubbles)
 	{
 		for (auto change : cdg.changes())
+		{
+			QSet<ChangePtr> bubble = {change};
 			if (change->type() == ChangeType::Move)
+			{
 				for (auto dependency : findMoveDependencies(treeBase, change, cdg))
+				{
 					moveDependencies.insert(dependency, change);
+					bubble.insert(dependency);
+				}
+			}
+			bubbles.add(bubble);
+		}
 	};
 
-	gatherDependencies(cdgA);
-	gatherDependencies(cdgB);
+	gatherDependencies(cdgA, bubblesA_);
+	gatherDependencies(cdgB, bubblesB_);
 
+	// Here we put all changes in a conflict unit and all changes connected in the CDG into one bubble.
+	for (auto root : affectedCUsA_.keys())
+	{
+		QSet<ChangePtr> bubble;
+		auto changes = affectedCUsA_.values(root);
+		while (!changes.isEmpty())
+		{
+			auto change = changes.takeFirst();
+			if (!bubble.contains(change))
+			{
+				bubble.insert(change);
+				changes << cdgA.getDependencies(change);
+				changes << cdgA.getDependendingChanges(change);
+			}
+		}
+		bubblesA_.add(bubble);
+	}
+	// Same thing for B
+	for (auto root : affectedCUsB_.keys())
+	{
+		QSet<ChangePtr> bubble;
+		auto changes = affectedCUsB_.values(root);
+		while (!changes.isEmpty())
+		{
+			auto change = changes.takeFirst();
+			if (!bubble.contains(change))
+			{
+				bubble.insert(change);
+				changes << cdgB.getDependencies(change);
+				changes << cdgB.getDependendingChanges(change);
+			}
+		}
+		bubblesB_.add(bubble);
+	}
+
+	// Ok, now find conflicts
 	// In all conflict units...
 	for (auto conflictRootId : affectedCUsA_.keys())
 	{
@@ -199,6 +286,7 @@ LinkedChangesTransition ConflictUnitDetector::run(std::shared_ptr<GenericTree>&,
 
 				for (auto childChangeA : structChangesA)
 				{
+					bubblesA_.add(childChangeA, changeA);
 					conflictingChanges.insert(childChangeA);
 					markDependingAsConflicting(conflictingChanges, childChangeA, cdgA, moveDependencies,
 														structChangesB.toList(), conflictPairs);
@@ -207,6 +295,7 @@ LinkedChangesTransition ConflictUnitDetector::run(std::shared_ptr<GenericTree>&,
 				}
 				for (auto childChangeB : structChangesB)
 				{
+					bubblesB_.add(childChangeB, changeB);
 					conflictingChanges.insert(childChangeB);
 					markDependingAsConflicting(conflictingChanges, childChangeB, cdgB, moveDependencies,
 														structChangesA.toList(), conflictPairs);
@@ -222,6 +311,44 @@ LinkedChangesTransition ConflictUnitDetector::run(std::shared_ptr<GenericTree>&,
 
 	checkMoves(cdgA, cdgB, conflictPairs, conflictingChanges);
 	checkMoves(cdgB, cdgA, conflictPairs, conflictingChanges);
+
+	QSet<QHash<Model::NodeIdType, ChangePtr>*> checkedPartitions;
+	for (auto partition : bubblesA_.partitions().values())
+		if (!checkedPartitions.contains(partition))
+		{
+			bool allChangesEqual = true;
+			checkedPartitions.insert(partition);
+			auto firstChange = *(partition->begin());
+			auto partitionB = bubblesB_.partitions().value(firstChange->nodeId());
+			if (partitionB && partitionB->size() == partition->size())
+			{
+				for (auto changeA : partition->values())
+				{
+					auto changeB = partitionB->value(changeA->nodeId());
+					if (!changeB || !changeB->equalTo(changeA))
+					{
+						allChangesEqual = false;
+						break;
+					}
+				}
+			}
+			else
+				allChangesEqual = false;
+
+			if (allChangesEqual)
+			{
+				for (auto change : partition->values())
+				{
+					conflictingChanges.remove(change);
+					conflictPairs.remove(change);
+				}
+				for (auto change : partitionB->values())
+				{
+					conflictingChanges.remove(change);
+					conflictPairs.remove(change);
+				}
+			}
+		}
 
 	return transition;
 }
